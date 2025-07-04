@@ -32,7 +32,7 @@ const clockOut = async (req, res) => {
     const today = getTodayDate();
 
     const existing = await Attendance.findOne({ userId, date: today });
-
+    
     if (existing && existing.clockIn && !existing.clockOut) {
       existing.clockOut = new Date(); 
       const result = await existing.save(); 
