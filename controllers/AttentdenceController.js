@@ -9,18 +9,31 @@ const clockIn = async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.params.userId);
     const today = getTodayDate();
     console.log(today)
-    const existing = await Attendance.findOne({ userId, date: today });
-    if (existing) return res.status(400).json({ message: 'Already clocked in' });
+    const existing = await Attendance.findOne({ userId });
 
-    const attendance = new Attendance({
-      userId,
-      date: today,
-      clockIn: new Date(),
-    });
+    if (existing.clockIn) return res.status(400).json({ message: 'Already clocked in' });
 
-    const result = await attendance.save();
-    console.log("==", result);
-    res.status(201).json(result);
+    if (existing) {
+      existing.date = new Date()
+      existing.clockIn = new Date(); 
+      const updated = await existing.save();
+      console.log("Updated Attendance:", updated);
+      res.status(200).json(updated);
+    }
+    else {
+      const attendance = new Attendance({
+        userId,
+        date: today,
+        clockIn: new Date(),
+        clockOut: ''
+      });
+
+      const result = await attendance.save();
+      console.log("==", result);
+      res.status(201).json(result);
+    }
+
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -31,11 +44,12 @@ const clockOut = async (req, res) => {
     const userId = new mongoose.Types.ObjectId(req.params.userId);
     const today = getTodayDate();
 
-    const existing = await Attendance.findOne({ userId, date: today });
-    
+    const existing = await Attendance.findOne({ userId });
+    console.log(existing,'check this data for my sake ')
+
     if (existing && existing.clockIn && !existing.clockOut) {
-      existing.clockOut = new Date(); 
-      const result = await existing.save(); 
+      existing.clockOut = new Date();
+      const result = await existing.save();
       console.log(result);
       return res.status(200).json(result);
     } else if (existing && existing.clockOut) {
@@ -51,10 +65,10 @@ const clockOut = async (req, res) => {
 
 const startBreak = async (req, res) => {
   try {
-    const { userId,  startTime, todayDate } = req.body;
+    const { userId, startTime, todayDate } = req.body;
     console.log(req.body)
 
-    const attendance = await Attendance.findOne({ userId: userId});
+    const attendance = await Attendance.findOne({ userId: userId });
 
     console.log(attendance)
 
@@ -71,7 +85,7 @@ const startBreak = async (req, res) => {
     }
 
     attendance.breaks.push({
-      startTime: startTime || new Date().toISOString(), 
+      startTime: startTime || new Date().toISOString(),
     });
 
     await attendance.save();
@@ -103,7 +117,7 @@ const endBreak = async (req, res) => {
       return res.status(400).json({ message: "You have to start a break first" });
     }
 
-    const end = new Date(endTime )|| new Date().toISOString();
+    const end = new Date(endTime) || new Date().toISOString();
     const start = new Date(ongoingBreak.startTime);
 
 
@@ -128,4 +142,19 @@ const endBreak = async (req, res) => {
   }
 };
 
-module.exports = { clockIn, clockOut, startBreak, endBreak };
+const getAttendance = async (req, res) => {
+
+  try {
+    const userId = req.params.userId
+    const userFound = await Attendance.findOne({ userId: userId });
+    if (!userFound.userId === userId) {
+      return res.status(401).json({ error: 'user not found' });
+    } else {
+      return res.status(200).json({ message: "user found successfuly", userFound })
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'not found try again' })
+  }
+}
+
+module.exports = { clockIn, clockOut, startBreak, endBreak, getAttendance };
